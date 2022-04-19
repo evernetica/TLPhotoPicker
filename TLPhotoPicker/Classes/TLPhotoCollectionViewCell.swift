@@ -160,8 +160,12 @@ open class TLPhotoCollectionViewCell: UICollectionViewCell {
         self.durationView?.isHidden = true
         self.selectedView?.isHidden = true
         self.selectedView?.layer.borderWidth = 10
-        self.selectedView?.layer.cornerRadius = 15
+        self.selectedView?.layer.cornerRadius = 18
         self.orderBgView?.layer.cornerRadius = 2
+
+        self.contentView.layer.cornerRadius = 12
+        self.contentView.clipsToBounds = true
+
         self.videoIconImageView?.image = self.configure.videoIcon
         if #available(iOS 11.0, *) {
             self.imageView?.accessibilityIgnoresInvertColors = true

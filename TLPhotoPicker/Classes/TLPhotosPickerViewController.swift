@@ -386,9 +386,12 @@ extension TLPhotosPickerViewController {
         guard let layout = self.collectionView.collectionViewLayout as? UICollectionViewFlowLayout else {
             return
         }
+        let inset = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
         let count = CGFloat(self.configure.numberOfColumn)
-        let width = floor((self.view.frame.size.width-(5*(count-1)))/count)
+        let rootWidth = self.view.frame.size.width - inset.left - inset.right
+        let width = floor((rootWidth-(5*(count-1)))/count)
         self.thumbnailSize = CGSize(width: width, height: width)
+        layout.sectionInset = inset
         layout.itemSize = self.thumbnailSize
         layout.minimumInteritemSpacing = 0
         self.collectionView.collectionViewLayout = layout
