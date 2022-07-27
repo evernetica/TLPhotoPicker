@@ -11,7 +11,7 @@ import Photos
 import PhotosUI
 import MobileCoreServices
 
-public protocol TLPhotosPickerViewControllerDelegate: class {
+public protocol TLPhotosPickerViewControllerDelegate: AnyObject {
     func dismissPhotoPicker(withPHAssets: [PHAsset])
     func dismissPhotoPicker(withTLPHAssets: [TLPHAsset])
     func shouldDismissPhotoPicker(withTLPHAssets: [TLPHAsset]) -> Bool
@@ -37,7 +37,7 @@ extension TLPhotosPickerViewControllerDelegate {
 }
 
 //for log
-public protocol TLPhotosPickerLogDelegate: class {
+public protocol TLPhotosPickerLogDelegate: AnyObject {
     func selectedCameraCell(picker: TLPhotosPickerViewController)
     func deselectedPhoto(picker: TLPhotosPickerViewController, at: Int)
     func selectedPhoto(picker: TLPhotosPickerViewController, at: Int)
@@ -71,6 +71,8 @@ public struct TLPhotosPickerConfigure {
     public var preventAutomaticLimitedAccessAlert = true
     public var mediaType: PHAssetMediaType? = nil
     public var numberOfColumn = 3
+    public var minimumLineSpacing: CGFloat = 5
+    public var minimumInteritemSpacing: CGFloat = 5
     public var singleSelectedMode = false
     public var maxSelectedAssets: Int? = nil
     public var fetchOption: PHFetchOptions? = nil
@@ -237,16 +239,22 @@ open class TLPhotosPickerViewController: UIViewController {
             registerForPreviewing(with: self, sourceView: collectionView)
         }
 
-        
+        updateUserInterfaceStyle()
+    }
+    
+    private func updateUserInterfaceStyle() {
         if #available(iOS 13.0, *) {
             let userInterfaceStyle = self.traitCollection.userInterfaceStyle
             let image = TLBundle.podBundleImage(named: "pop_arrow")
+            let subImage = TLBundle.podBundleImage(named: "arrow")
             if userInterfaceStyle.rawValue == 2 {
                 self.popArrowImageView.image = image?.colorMask(color: .systemBackground)
+                self.subTitleArrowImageView.image = subImage?.colorMask(color: .white)
                 self.view.backgroundColor = .black
                 self.collectionView.backgroundColor = .black
-            }else {
+            } else {
                 self.popArrowImageView.image = image?.colorMask(color: .white)
+                self.subTitleArrowImageView.image = subImage
                 self.view.backgroundColor = .white
                 self.collectionView.backgroundColor = .white
             }
@@ -393,7 +401,8 @@ extension TLPhotosPickerViewController {
         self.thumbnailSize = CGSize(width: width, height: width)
         layout.sectionInset = inset
         layout.itemSize = self.thumbnailSize
-        layout.minimumInteritemSpacing = 0
+        layout.minimumInteritemSpacing = self.configure.minimumInteritemSpacing
+        layout.minimumLineSpacing = self.configure.minimumLineSpacing
         self.collectionView.collectionViewLayout = layout
         self.placeholderThumbnail = centerAtRect(image: self.configure.placeholderIcon, rect: CGRect(x: 0, y: 0, width: width, height: width))
         self.cameraImage = centerAtRect(image: self.configure.cameraIcon, rect: CGRect(x: 0, y: 0, width: width, height: width), bgColor: self.configure.cameraBgColor)
@@ -429,10 +438,12 @@ extension TLPhotosPickerViewController {
             self.usedPrefetch = false
         }
         if #available(iOS 9.0, *), self.allowedLivePhotos {
-        }else {
+        } else {
             self.allowedLivePhotos = false
         }
         self.customDataSouces?.registerSupplementView(collectionView: self.collectionView)
+        self.navigationBar.delegate = self
+        updateUserInterfaceStyle()
     }
     
     private func updatePresentLimitedLibraryButton() {
@@ -654,6 +665,14 @@ extension TLPhotosPickerViewController: UIImagePickerControllerDelegate, UINavig
         picker.mediaTypes = mediaTypes
         picker.allowsEditing = false
         picker.delegate = self
+        
+        // if user is on ipad using split view controller, present picker as popover
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            picker.modalPresentationStyle = .popover
+            picker.popoverPresentationController?.sourceView = view
+            picker.popoverPresentationController?.sourceRect = .zero
+        }
+        
         self.present(picker, animated: true, completion: nil)
     }
 
@@ -1303,6 +1322,12 @@ extension TLPhotosPickerViewController {
             }
         }
 
+    }
+}
+
+extension TLPhotosPickerViewController: UINavigationBarDelegate {
+    public func position(for bar: UIBarPositioning) -> UIBarPosition {
+        return .topAttached
     }
 }
 
