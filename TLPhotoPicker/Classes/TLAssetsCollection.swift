@@ -220,11 +220,20 @@ public struct TLPHAsset {
                                                                  options: requestOptions,
                                                                  exportPreset: exportPreset)
             { (session, infoDict) in
+                var timer: Timer?
+                if #available(iOS 10.0, *) {
+                    timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+                        DispatchQueue.main.async {
+                            progressBlock?(Double(session?.progress ?? 0))
+                        }
+                    }
+                }
                 session?.outputURL = localURL
                 session?.outputFileType = AVFileType.mov
                 session?.exportAsynchronously(completionHandler: {
                     DispatchQueue.main.async {
                         completionBlock(localURL, mimetype)
+                        timer?.invalidate()
                     }
                 })
             }
