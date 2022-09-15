@@ -15,15 +15,15 @@ public struct TLPHAsset {
     enum CloudDownloadState {
         case ready, progress, complete, failed
     }
-    
+
     public enum AssetType {
         case photo, video, livePhoto
     }
-    
+
     public enum ImageExtType: String {
         case png, jpg, gif, heic
     }
-    
+
     var state = CloudDownloadState.ready
     public var phAsset: PHAsset? = nil
     //Bool to check if TLPHAsset returned is created using camera.
@@ -41,14 +41,14 @@ public struct TLPHAsset {
             }
         }
     }
-    
+
     public var fullResolutionImage: UIImage? {
         get {
             guard let phAsset = self.phAsset else { return nil }
             return TLPhotoLibrary.fullResolutionImageData(asset: phAsset)
         }
     }
-    
+
     public func extType(defaultExt: ImageExtType = .png) -> ImageExtType {
         guard let fileName = self.originalFileName,
               let encodedFileName = fileName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
@@ -57,20 +57,20 @@ public struct TLPHAsset {
               }
         return ImageExtType(rawValue: extention) ?? defaultExt
     }
-    
+
     @discardableResult
     public func cloudImageDownload(progressBlock: @escaping (Double) -> Void, completionBlock:@escaping (UIImage?)-> Void ) -> PHImageRequestID? {
         guard let phAsset = self.phAsset else { return nil }
         return TLPhotoLibrary.cloudImageDownload(asset: phAsset, progressBlock: progressBlock, completionBlock: completionBlock)
     }
-    
+
     public var originalFileName: String? {
         get {
             guard let phAsset = self.phAsset,let resource = PHAssetResource.assetResources(for: phAsset).first else { return nil }
             return resource.originalFilename
         }
     }
-    
+
     public func photoSize(options: PHImageRequestOptions? = nil ,completion: @escaping ((Int)->Void), livePhotoVideoSize: Bool = false) {
         guard let phAsset = self.phAsset, self.type == .photo || self.type == .livePhoto else { completion(-1); return }
         var resource: PHAssetResource? = nil
@@ -95,7 +95,7 @@ public struct TLPHAsset {
             }
         }
     }
-    
+
     public func videoSize(options: PHVideoRequestOptions? = nil, completion: @escaping ((Int)->Void)) {
         guard let phAsset = self.phAsset, self.type == .video else {  completion(-1); return }
         let resource = PHAssetResource.assetResources(for: phAsset).filter { $0.type == .video }.first
@@ -122,7 +122,7 @@ public struct TLPHAsset {
             }
         }
     }
-    
+
     func MIMEType(_ url: URL?) -> String? {
         guard let ext = url?.pathExtension else { return nil }
         if !ext.isEmpty {
@@ -138,7 +138,7 @@ public struct TLPHAsset {
         }
         return nil
     }
-    
+
     private func tempCopyLivePhotos(phAsset: PHAsset,
                                     livePhotoRequestOptions: PHLivePhotoRequestOptions? = nil,
                                     localURL: URL,
@@ -168,7 +168,7 @@ public struct TLPHAsset {
             }
         }
     }
-    
+
     @discardableResult
     //convertLivePhotosToJPG
     // false : If you want mov file at live photos
@@ -275,7 +275,7 @@ public struct TLPHAsset {
             return nil
         }
     }
-    
+
     private func videoFilename(phAsset: PHAsset) -> URL? {
         guard let resource = (PHAssetResource.assetResources(for: phAsset).filter{ $0.type == .video }).first else {
             return nil
@@ -289,7 +289,7 @@ public struct TLPHAsset {
         }
         return writeURL
     }
-    
+
     //Apparently, This is not the only way to export video.
     //There is many way that export a video.
     //This method was one of them.
@@ -298,38 +298,49 @@ public struct TLPHAsset {
                                 outputFileType: AVFileType = .mov,
                                 progressBlock:((Double) -> Void)? = nil,
                                 completionBlock:@escaping ((URL,String) -> Void)) {
-        guard
-            let phAsset = self.phAsset,
-            phAsset.mediaType == .video,
-            let writeURL = outputURL ?? videoFilename(phAsset: phAsset),
-            let mimetype = MIMEType(writeURL)
-            else {
-                return
-        }
+        guard let phAsset = self.phAsset,
+              let writeURL = outputURL ?? videoFilename(phAsset: phAsset),
+              let mimetype = MIMEType(writeURL),
+              phAsset.mediaType == .video
+        else { return }
+
         var requestOptions = PHVideoRequestOptions()
+        requestOptions.isNetworkAccessAllowed = true
+
         if let options = options {
             requestOptions = options
-        }else {
-            requestOptions.isNetworkAccessAllowed = true
         }
+
         requestOptions.progressHandler = { (progress, error, stop, info) in
             DispatchQueue.main.async {
                 progressBlock?(progress)
             }
         }
-        PHImageManager.default().requestAVAsset(forVideo: phAsset, options: requestOptions) { (avasset, avaudioMix, infoDict) in
-            guard let avasset = avasset else {
-                return
+
+        PHCachingImageManager.default().requestAVAsset(forVideo: phAsset, options: requestOptions) { (avasset, _, _) in
+            guard let avasset = avasset else { return }
+            let session = AVAssetExportSession(asset: avasset, presetName: AVAssetExportPresetPassthrough)
+
+            var timer: Timer?
+            if #available(iOS 10.0, *) {
+                DispatchQueue.main.async {
+                    timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+                        DispatchQueue.main.async {
+                            progressBlock?(Double(session?.progress ?? 0))
+                        }
+                    }
+                }
             }
-            let exportSession = AVAssetExportSession.init(asset: avasset, presetName: AVAssetExportPresetHighestQuality)
-            exportSession?.outputURL = writeURL
-            exportSession?.outputFileType = outputFileType
-            exportSession?.exportAsynchronously(completionHandler: {
+
+            session?.outputURL = writeURL
+            session?.outputFileType = outputFileType
+            session?.exportAsynchronously(completionHandler: {
                 completionBlock(writeURL, mimetype)
+                timer?.invalidate()
             })
         }
     }
-    
+
     init(asset: PHAsset?) {
         self.phAsset = asset
     }
@@ -367,20 +378,20 @@ public struct TLAssetsCollection {
             return count + (self.useCameraButton ? 1 : 0)
         }
     }
-    
+
     init(collection: PHAssetCollection) {
         self.phAssetCollection = collection
         self.title = collection.localizedTitle ?? ""
         self.localIdentifier = collection.localIdentifier
     }
-    
+
     func getAsset(at index: Int) -> PHAsset? {
         if self.useCameraButton && index == 0 { return nil }
         let index = index - (self.useCameraButton ? 1 : 0)
         guard let result = self.fetchResult, index < result.count else { return nil }
         return result.object(at: max(index,0))
     }
-    
+
     func getTLAsset(at indexPath: IndexPath) -> TLPHAsset? {
         let isCameraRow = self.useCameraButton && indexPath.section == 0 && indexPath.row == 0
         if isCameraRow {
@@ -397,7 +408,7 @@ public struct TLAssetsCollection {
             return TLPHAsset(asset: result.object(at: max(index,0)))
         }
     }
-    
+
     func findIndex(phAsset: PHAsset) -> IndexPath? {
         guard let sections = self.sections else {
             return nil
@@ -409,7 +420,7 @@ public struct TLAssetsCollection {
         }
         return nil
     }
-    
+
     mutating func reloadSection(groupedBy: PHFetchedResultGroupedBy) {
         var groupedSections = self.section(groupedBy: groupedBy)
         if self.useCameraButton {
@@ -417,7 +428,7 @@ public struct TLAssetsCollection {
         }
         self.sections = groupedSections
     }
-    
+
     static func ==(lhs: TLAssetsCollection, rhs: TLAssetsCollection) -> Bool {
         return lhs.localIdentifier == rhs.localIdentifier
     }
