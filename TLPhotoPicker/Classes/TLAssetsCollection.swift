@@ -319,7 +319,7 @@ public struct TLPHAsset {
 
         PHCachingImageManager.default().requestAVAsset(forVideo: phAsset, options: requestOptions) { (avasset, _, _) in
             guard let avasset = avasset else { return }
-            let session = AVAssetExportSession(asset: avasset, presetName: AVAssetExportPresetPassthrough)
+            let session = AVAssetExportSession(asset: avasset, presetName: AVAssetExportPreset1280x720)
 
             var timer: Timer?
             if #available(iOS 10.0, *) {
