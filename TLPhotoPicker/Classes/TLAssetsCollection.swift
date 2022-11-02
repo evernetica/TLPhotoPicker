@@ -401,11 +401,13 @@ public struct TLAssetsCollection {
             let index = indexPath.row - ((self.useCameraButton && indexPath.section == 0) ? 1 : 0)
             let result = sections[safe: indexPath.section]
             return result?.assets[safe: index]
-        }else {
+        } else {
             var index = indexPath.row
             index = index - (self.useCameraButton ? 1 : 0)
-            guard let result = self.fetchResult, index < result.count else { return nil }
-            return TLPHAsset(asset: result.object(at: max(index,0)))
+            guard let result = self.fetchResult else { return nil }
+            let reversedIndex = result.count - index - 1
+            guard reversedIndex < result.count else { return nil }
+            return TLPHAsset(asset: result.object(at: max(reversedIndex,0)))
         }
     }
 

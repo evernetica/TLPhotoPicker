@@ -139,7 +139,6 @@ extension TLPhotoLibrary {
             options = fetchOption
         }else {
             options = PHFetchOptions()
-            options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         }
         if let mediaType = configure.mediaType {
             let mediaPredicate = NSPredicate(format: "mediaType = %i", mediaType.rawValue)
