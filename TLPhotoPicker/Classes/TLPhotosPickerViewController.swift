@@ -119,7 +119,11 @@ public enum PopupConfigure {
 
 public struct Platform {
     public static var isSimulator: Bool {
-        return TARGET_OS_SIMULATOR != 0 // Use this line in Xcode 7 or newer
+        #if targetEnvironment(simulator)
+        return true
+        #else
+        return false
+        #endif
     }
 }
 
@@ -331,6 +335,11 @@ open class TLPhotosPickerViewController: UIViewController {
         if self.photoLibrary.delegate == nil {
             checkAuthorization()
         }
+    }
+    
+    override open func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+            super.viewWillTransition(to: size, with: coordinator)
+            self.thumbnailSize = CGSize.zero
     }
     
     private func findIndexAndReloadCells(phAsset: PHAsset) {
@@ -610,7 +619,7 @@ extension TLPhotosPickerViewController: TLPhotoLibraryDelegate {
     func loadCompleteAllCollection(collections: [TLAssetsCollection]) {
         self.collections = collections
         self.focusFirstCollection()
-        let isEmpty = self.collections.count == 0
+        let isEmpty = !self.collections.contains(where: { $0.assetCount > 0 })
         self.subTitleStackView.isHidden = isEmpty
         self.emptyView.isHidden = !isEmpty
         self.emptyImageView.isHidden = self.emptyImageView.image == nil
